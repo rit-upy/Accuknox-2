@@ -20,7 +20,7 @@ class LoginAPIView(views.APIView):
         password = serializer.validated_data['password']
         
         try:
-            user = UserModel.objects.get(user_email = user_email)
+            user = UserModel.objects.get(user_email__iexact = user_email)
   
         except:
             return Response('User Email not found', status = status.HTTP_401_UNAUTHORIZED)
