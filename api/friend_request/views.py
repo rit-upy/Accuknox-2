@@ -2,7 +2,7 @@
 from rest_framework import generics,status
 from .models import Friends
 from authentication.models import User
-from .serializers import AcceptedUsersSerializer,SearchUsersSerializer, SendRequestSerializer
+from .serializers import AcceptedUsersSerializer,SearchUsersSerializer, SendRequestSerializer,AcceptRequestSerializer
 from rest_framework.response import Response
 
 # Create your views here.
@@ -43,6 +43,15 @@ class SendFriendRequest(generics.CreateAPIView):
     queryset = Friends.objects.all()
     serializer_class = SendRequestSerializer
 
+class AcceptFriendRequest(generics.UpdateAPIView):
+    queryset = Friends.objects.all()
+    serializer_class = AcceptRequestSerializer
+    
+    
+    def put(self, request, *args, **kwargs):
+        print(f'This is the request data {request.data}')
+        
+        return super().put(request, *args, **kwargs)
     
 
 

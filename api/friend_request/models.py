@@ -13,12 +13,14 @@ class Friends(models.Model):
 
     class Meta:
         constraints  = [
+            #no deuplicates
         models.UniqueConstraint(
             fields=['user', 'friend'],
             name='user_friend_unique_constraint', 
             violation_error_message = 'User and friend are the same'
             
         ),
+        #no self reference
         models.CheckConstraint(
             check= ~models.Q(user = models.F('friend')),
             name = 'prevent_self_friendship', 
