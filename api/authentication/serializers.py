@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import UserModel
+from .models import User
 class LoginSerializer(serializers.Serializer):
     user_email = serializers.EmailField()
     password = serializers.CharField()
@@ -10,10 +10,9 @@ class LoginSerializer(serializers.Serializer):
         
 
 
-
 class SignUpSerializer(serializers.ModelSerializer):
     class Meta:
-        model = UserModel
+        model = User
         exclude = 'last_login',
 
     def create(self, validated_data):
