@@ -2,8 +2,9 @@
 from rest_framework import generics,status
 from .models import Friends
 from authentication.models import User
-from .serializers import AcceptedUsersSerializer,SearchUsersSerializer, SendRequestSerializer,AcceptRequestSerializer
+from .serializers import AcceptedUsersSerializer,SearchUsersSerializer, SendRequestSerializer,AcceptRequestSerializer, RejectRequestSerializer
 from rest_framework.response import Response
+from django.core.exceptions import ValidationError
 
 # Create your views here.
 class BaseFriendsListView(generics.ListAPIView):
@@ -49,10 +50,18 @@ class AcceptFriendRequest(generics.UpdateAPIView):
     
     
     def put(self, request, *args, **kwargs):
-        print(f'This is the request data {request.data}')
-        
         return super().put(request, *args, **kwargs)
     
 
+class RejectFriendRequest(generics.DestroyAPIView):
+    queryset = Friends.objects.all()
+    serializer_class = RejectRequestSerializer
 
+    def destroy(self, request, *args, **kwargs):
+        friend = self.get_object()
+        print(friend)
+        if friend.pending is False:
+            raise ValidationError('Request is already accepted')
+
+        return super().destroy(request, *args, **kwargs)
     

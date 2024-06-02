@@ -36,3 +36,10 @@ class AcceptRequestSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)    
     
     
+class RejectRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        models = Friends
+        exclude = ('pending',)
+
+    
+    
