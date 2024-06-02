@@ -19,6 +19,11 @@ class Friends(models.Model):
             violation_error_message = 'User and friend are the same'
             
         ),
+        models.CheckConstraint(
+            check= ~models.Q(user = models.F('friend')),
+            name = 'prevent_self_friendship', 
+            violation_error_message = 'User and friend are the same'
+        )
         ]
 
 
