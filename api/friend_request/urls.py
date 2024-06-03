@@ -1,8 +1,8 @@
 from django.urls import path
-from .views import SendFriendRequest, AcceptFriendRequest,RejectFriendRequest
+from .views import FriendRequest
 
 urlpatterns = [
-    path('send/', SendFriendRequest.as_view() ),
-    path('accept/<int:pk>', AcceptFriendRequest.as_view()),
-    path('reject/<int:pk>', RejectFriendRequest.as_view())
+    path('send/', FriendRequest.as_view({'post':'create'})),
+    path('accept/<int:pk>', FriendRequest.as_view({'put':'update'})),
+    path('reject/<int:pk>', FriendRequest.as_view({'delete':'destroy'}))
 ]
