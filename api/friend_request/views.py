@@ -1,32 +1,38 @@
 
-from rest_framework import generics,status
+from rest_framework import generics,status, views
 from .models import Friends
 from authentication.models import User
 from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from django.utils.functional import cached_property
 
 # Create your views here.
-class BaseFriendsListView(generics.ListAPIView):
+class ListUsers(generics.ListAPIView):
     queryset = Friends.objects.all()
     serializer_class = AcceptedUsersSerializer
-
+       
+    @cached_property #caching as it is being called twice. Once in self.list and the other in renderers.py (get_filter_form)
     def get_queryset(self):
-        queryset = super().get_queryset()
-        if hasattr(self, 'pending_status'):
-            queryset = queryset.filter(pending=self.pending_status)
-        return queryset
+        status = self.kwargs.get('status', None)
+        print(f'status is {status.lower()}')
+        if status is None:
+            raise ValidationError('Argument not provided!')
+        elif status.lower() == 'accepted':
+            pending = False
+        elif status.lower() == 'pending':
+            pending = True
+        else:
+            raise ValidationError('Wrong status request!')
+        return Friends.objects.filter(pending = pending)
 
-class ListAcceptedUsers(BaseFriendsListView):
-    pending_status = False
-
-class ListPendingUsers(BaseFriendsListView):
-    pending_status = True
 
 class SearchAPIView(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = SearchUsersSerializer
+    
     def get_queryset(self):
         search_email = self.request.query_params.get('email', None)
 
@@ -45,33 +51,11 @@ class FriendRequest(viewsets.ModelViewSet):
     queryset = Friends.objects.all()
     serializer_class = RequestSerializer
     
+    
     def destroy(self, request, *args, **kwargs):
         friend = self.get_object()
         if friend.pending is False:
             raise ValidationError('Request is already accepted and hence can\'t be deleted')
 
         return super().destroy(request, *args, **kwargs)
-    
-
-# class SendFriendRequest(generics.CreateAPIView):
-#     queryset = Friends.objects.all()
-#     serializer_class = RequestSerializer
-
-# class AcceptFriendRequest(generics.UpdateAPIView):
-#     queryset = Friends.objects.all()
-#     serializer_class = RequestSerializer
-
-    
-
-# class RejectFriendRequest(generics.DestroyAPIView):
-#     queryset = Friends.objects.all()
-#     serializer_class = RequestSerializer
-
-#     def destroy(self, request, *args, **kwargs):
-#         friend = self.get_object()
-#         print(friend)
-#         if friend.pending is False:
-#             raise ValidationError('Request is already accepted')
-
-#         return super().destroy(request, *args, **kwargs)
     
