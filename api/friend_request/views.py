@@ -6,8 +6,9 @@ from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSe
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from django.utils.functional import cached_property
+from django.db.models import Q
+from rest_framework import throttling
+
 
 # Create your views here.
 class ListUsers(generics.ListAPIView):
@@ -55,10 +56,8 @@ class ListUsers(generics.ListAPIView):
 
 
 class SearchAPIView(generics.ListAPIView):
-    queryset = User.objects.all()
     serializer_class = SearchUsersSerializer
     
-
     def get_queryset(self):
         search_email = self.request.query_params.get('email', None)
 
@@ -68,17 +67,55 @@ class SearchAPIView(generics.ListAPIView):
         name = self.request.query_params.get('name', None)
         
         if name is not None:
-            return User.objects.filter(name__icontains = name)  
+            
+            return User.objects.filter(Q(first_name__icontains=name) | Q(last_name__icontains=name))
         return Response('Please enter the email or the name field.',\
                              status=status.HTTP_400_BAD_REQUEST)
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        # if not queryset.exists():
+        #     return Response('Please enter the email or the name field.', status=status.HTTP_400_BAD_REQUEST)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-class FriendRequest(viewsets.ModelViewSet): #send, accept,reject
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+from rest_framework import throttling
+
+class FriendRequestThrottle(throttling.SimpleRateThrottle):
+    scope = 'friend_request'
+    rate = '3/minute'
+    def get_cache_key(self, request, view):
+        # Use the user's ID as part of the cache key to distinguish requests from different users
+        user_id = request.user.id if request.user else None
+        return f'{self.scope}-{user_id}'
+
+    def allow_request(self, request, view):
+        # Get the cache key for the current request
+        cache_key = self.get_cache_key(request, view)
+        # Get the number of requests made by the user within the throttle time window
+        num_requests = self.cache.get(cache_key, 0)
+        # Check if the user has exceeded the allowed number of requests
+        if num_requests >= 3:
+            return False
+        # Increment the number of requests made by the user
+        self.cache.set(cache_key, num_requests + 1, self.duration)
+        return True
+
+
+class FriendRequest(viewsets.ModelViewSet):
     queryset = Friends.objects.all()
     serializer_class = RequestSerializer
 
-    
-
-    
+    def get_throttles(self):
+        if self.action == 'create':
+            return [FriendRequestThrottle()]
+        return super().get_throttles()
 
     def destroy(self, request, *args, **kwargs):
         friend = self.get_object()
@@ -86,4 +123,3 @@ class FriendRequest(viewsets.ModelViewSet): #send, accept,reject
             raise ValidationError('Request is already accepted and hence can\'t be deleted')
 
         return super().destroy(request, *args, **kwargs)
-    
