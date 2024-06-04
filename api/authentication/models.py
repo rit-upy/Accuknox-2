@@ -9,11 +9,13 @@ class User(AbstractBaseUser):
     password = models.CharField(max_length=250)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    full_name = models.GeneratedField(
-        expression = models.F('first_name') + models.F('last_name'),
-        output_field = models.CharField(max_length=200), 
-        db_persist = True
-    )
+    
 
     USERNAME_FIELD = 'email'
 
+    def __str__(self) -> str:
+        return f'{self.email} {self.first_name} {self.last_name} {self.full_name}'
+
+    @property
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'

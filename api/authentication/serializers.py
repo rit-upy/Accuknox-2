@@ -3,17 +3,18 @@ from django.contrib.auth.hashers import make_password
 from .models import User
 class LoginSerializer(serializers.Serializer):
     user_email = serializers.EmailField()
-    password = serializers.CharField()
+    password = serializers.CharField(write_only = True)
 
-    def is_valid(self, *, raise_exception=False):
-        super().is_valid(raise_exception=raise_exception)
-        
 
 
 class SignUpSerializer(serializers.ModelSerializer):
+    full_name = serializers.ReadOnlyField()
     class Meta:
         model = User
-        exclude = 'last_login',
+        exclude = ('last_login',)
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
     def create(self, validated_data):
         validated_data['password'] = make_password(validated_data['password'])

@@ -28,5 +28,3 @@ class Friends(models.Model):
             violation_error_message = 'User and friend are the same'
         )
         ]
-
-
