@@ -1,14 +1,14 @@
 
-from rest_framework import generics,status, views
+from rest_framework import generics,status
 from .models import Friends
 from authentication.models import User
-from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer, SendRequestSerializer
+from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer, SendRequestSerializer, ReceivedUserRequestSerializer
 from rest_framework.response import Response
-from django.core.exceptions import ValidationError
 from rest_framework import viewsets
 from django.db.models import Q
 from rest_framework import throttling
-from pprint import pprint
+from rest_framework.pagination import PageNumberPagination
+
 
 
 # Create your views here.
@@ -17,47 +17,36 @@ class ListUsers(generics.ListAPIView):
     serializer_class = AcceptedUsersSerializer
 
     def get(self, request, *args, **kwargs):
-        print(kwargs)
-        user = kwargs.get('pk')
-        status = kwargs.get('status')        
+        user = request.user
+        pending_status = kwargs.get('pending_status')        
 
-        if not user:
-            raise ValidationError('User not provided')
-        
-        if not status:
-            raise ValidationError('Status not provided')
-        elif status.lower() == 'accepted':
-            pending = False
-        elif status.lower() == 'pending':
-            pending = True
+        if not pending_status:
+            return Response('Status not provided', status=status.HTTP_400_BAD_REQUEST)
+        elif pending_status.lower() == 'accepted':
+            friends = Friends.objects.filter(user = user, pending = False)            
+        elif pending_status.lower() == 'pending':
+            self.serializer_class = ReceivedUserRequestSerializer
+            friends = Friends.objects.filter(friend = user, pending = True) 
         else:
-            raise ValidationError('Wrong status request!')
+            return Response('Wrong status request!', status=status.HTTP_400_BAD_REQUEST)
         
-        friends = Friends.objects.filter(user__pk = user, pending = pending )
-        reverse_friends = Friends.objects.filter(friend__pk = user, pending = pending)
-        self.queryset = friends.union(reverse_friends)
-        print(self.get_object())
+        
+        if len(friends) == 0:
+            return Response(f'You have no {pending_status} friend requests', status=status.HTTP_200_OK)
+        self.queryset = friends
+        
         return super().get(request, *args, **kwargs)
-       
-    # @cached_property #caching as it is being called twice. Once in self.list and the other in renderers.py (get_filter_form)
-    def get_queryset(self):
-        # print(self.get_object())
-        status = self.kwargs.get('status', None)
-        print(f'status is {status.lower()}')
-        if status is None:
-            raise ValidationError('Argument not provided!')
-        elif status.lower() == 'accepted':
-            pending = False
-        elif status.lower() == 'pending':
-            pending = True
-        else:
-            raise ValidationError('Wrong status request!')
-        # Friends.objects.filter(user = )
-        return Friends.objects.filter(pending = pending)
 
+
+class SearchUserPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 10000
+       
 
 class SearchAPIView(generics.ListAPIView):
     serializer_class = SearchUsersSerializer
+    pagination_class = SearchUserPagination
     
     def get_queryset(self):
         search_email = self.request.query_params.get('email', None)
@@ -113,6 +102,21 @@ class FriendRequest(viewsets.ModelViewSet):
     
     serializer_class = RequestSerializer
 
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        friend = request.data['friend']
+
+        if Friends.objects.filter(user = user, friend = friend).exists():
+            return Response('You cannot accept your own friend request. You must wait for the other person.'
+                            , status=status.HTTP_400_BAD_REQUEST)
+        try:
+            friend = Friends.objects.get(user = friend, friend = user, pending = True) #accepting request
+        except Friends.DoesNotExist:
+            return Response('The request seems to be wrong. Check again', status=status.HTTP_400_BAD_REQUEST)
+        friend.pending = False
+        friend.save()
+        return Response('Friend request is accepted.', status=status.HTTP_200_OK)
+    
     def get_throttles(self):
         if self.action == 'create':
             return [FriendRequestThrottle()]
@@ -120,15 +124,15 @@ class FriendRequest(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs): #reject
         user = request.user
-        friend_id = kwargs.get('pk')
-        print(user.id,friend_id)
+        friend_id = request.data['friend']
         if user.id == friend_id:
             return Response('User and friend are the same', status=status.HTTP_400_BAD_REQUEST)
+        
 
         try:
-            friend = Friends.objects.get(user = user, id = friend_id)
+            friend = Friends.objects.get(user__id = friend_id , friend = user )
         except Friends.DoesNotExist:
-            return Response('You are not friends with this person', status=status.HTTP_400_BAD_REQUEST)
+            return Response('Friend request does not exist.', status=status.HTTP_400_BAD_REQUEST)
         
         if friend.pending is False:
             return Response('Request is already accepted and can\'t be deleted', status=status.HTTP_400_BAD_REQUEST)

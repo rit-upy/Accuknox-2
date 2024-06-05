@@ -10,7 +10,7 @@ class Friends(models.Model):
     pending = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.user.id} {self.friend.id} {self.pending}'
+        return f'{self.user.id} -> {self.friend.id}. Status = {self.pending}'
 
     class Meta:
         constraints  = [
