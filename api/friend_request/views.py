@@ -2,12 +2,13 @@
 from rest_framework import generics,status, views
 from .models import Friends
 from authentication.models import User
-from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer
+from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer, SendRequestSerializer
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
 from rest_framework import viewsets
 from django.db.models import Q
 from rest_framework import throttling
+from pprint import pprint
 
 
 # Create your views here.
@@ -85,7 +86,7 @@ class SearchAPIView(generics.ListAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-from rest_framework import throttling
+
 
 class FriendRequestThrottle(throttling.SimpleRateThrottle):
     scope = 'friend_request'
@@ -109,7 +110,7 @@ class FriendRequestThrottle(throttling.SimpleRateThrottle):
 
 
 class FriendRequest(viewsets.ModelViewSet):
-    queryset = Friends.objects.all()
+    
     serializer_class = RequestSerializer
 
     def get_throttles(self):
@@ -117,9 +118,25 @@ class FriendRequest(viewsets.ModelViewSet):
             return [FriendRequestThrottle()]
         return super().get_throttles()
 
-    def destroy(self, request, *args, **kwargs):
-        friend = self.get_object()
-        if friend.pending is False:
-            raise ValidationError('Request is already accepted and hence can\'t be deleted')
+    def destroy(self, request, *args, **kwargs): #reject
+        user = request.user
+        friend_id = kwargs.get('pk')
+        print(user.id,friend_id)
+        if user.id == friend_id:
+            return Response('User and friend are the same', status=status.HTTP_400_BAD_REQUEST)
 
-        return super().destroy(request, *args, **kwargs)
+        try:
+            friend = Friends.objects.get(user = user, id = friend_id)
+        except Friends.DoesNotExist:
+            return Response('You are not friends with this person', status=status.HTTP_400_BAD_REQUEST)
+        
+        if friend.pending is False:
+            return Response('Request is already accepted and can\'t be deleted', status=status.HTTP_400_BAD_REQUEST)
+        
+        friend.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SendRequestView(generics.CreateAPIView):
+    serializer_class = SendRequestSerializer
+    
