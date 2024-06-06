@@ -79,3 +79,8 @@ A Django-based REST API for managing friend requests and friendships. Users can 
   - URL: `/list/<str:pending_status>/`
   - Method: `GET`
   - Body: `{"friend": "<friend_id>"}`
+
+## Notes
+
+- You must login after signing up
+- Use the token returned after login to authenticate yourself in Postman
