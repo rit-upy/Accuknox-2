@@ -134,8 +134,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    # 'PAGE_SIZE': 10
+    'EXCEPTION_HANDLER' : 'friend_request.exceptions.throttle_exception',
+     'DEFAULT_THROTTLE_CLASSES': [
+         
+        'rest_framework.throttling.ScopedRateThrottle',  
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'send': '3/minute',  # 3 search requests per minute
+    }
 }
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

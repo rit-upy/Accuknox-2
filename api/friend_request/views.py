@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import viewsets
 from django.db.models import Q
 from .paginators import SearchUserPagination
-from .throttles import FriendRequestThrottle
+from rest_framework.throttling import ScopedRateThrottle
 
 
 
@@ -112,4 +112,5 @@ class FriendRequest(viewsets.ModelViewSet):
 
 class SendRequestView(generics.CreateAPIView):
     serializer_class = SendRequestSerializer
-    throttle_classes = [FriendRequestThrottle]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'send'
