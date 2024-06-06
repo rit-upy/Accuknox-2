@@ -19,6 +19,7 @@ A Django-based REST API for managing friend requests and friendships. Users can 
 
 - Python 3.x
 - Django 3.x
+- Docker
 - Other dependencies as listed in `requirements.txt`
 
 ### Setup
@@ -29,51 +30,36 @@ A Django-based REST API for managing friend requests and friendships. Users can 
    ```
 2. Navigate into the project directory:
    ```bash
-   cd Accuknox-2
+   cd Accuknox-2/api
    ```
-3. Create a virtual environment:
+3. Build the docker image:
    ```bash
-   python -m venv env
+   docker build -t <tagname> .
    ```
-4. Activate the virtual environment:
-   - On Windows:
-     ```bash
-     .\env\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```bash
-     source env/bin/activate
-     ```
-5. Install the required dependencies:
+4. Run the docker container:
    ```bash
-   pip install -r requirements.txt
-   ```
-
-## Configuration
-
-1. Create a `.env` file in the root directory and add your environment variables:
-   ```plaintext
-   SECRET_KEY=your_secret_key
-   DEBUG=True
-   DATABASE_URL=your_database_url
-   ```
-
-## Usage
-
-1. Apply migrations:
-   ```bash
-   python manage.py migrate
-   ```
-2. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
-   ```
-3. Run the development server:
-   ```bash
-   python manage.py runserver
+   docker run <tagname>
    ```
 
 ## API Endpoints
+
+#Authentication
+
+- **Login**
+
+  - URL: `/api/auth/login/`
+  - Method: `POST`
+  - Body: `{"email" : "email id"}`
+
+- **Signup**
+  - URL: `/api/auth/signup`
+  - Method: `POST`
+  - Body: `{
+"email": "email id",
+"password": "password",
+"first_name": "First name",
+"last_name": "Last Name"
+}`
 
 ### Friend Requests
 
@@ -82,30 +68,14 @@ A Django-based REST API for managing friend requests and friendships. Users can 
   - Method: `POST`
   - Body: `{"friend": "<friend_id>"}`
 - **Accept Friend Request**
-  - URL: `/accept/<int:id>/`
+  - URL: `/accept/`
   - Method: `PUT`
+    -Body: `{"friend": "<friend_id>"}`
 - **Reject Friend Request**
-  - URL: `/reject/<int:id>/`
+  - URL: `/reject/`
   - Method: `DELETE`
+  - Body: `{"friend": "<friend_id>"}`
 - **List Friends**
   - URL: `/list/<str:pending_status>/`
   - Method: `GET`
-
-## Running Tests
-
-1. Run the tests:
-   ```bash
-   python manage.py test
-   ```
-
-## Contributing
-
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/fooBar`).
-3. Commit your changes (`git commit -am 'Add some fooBar'`).
-4. Push to the branch (`git push origin feature/fooBar`).
-5. Create a new Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+  - Body: `{"friend": "<friend_id>"}`
