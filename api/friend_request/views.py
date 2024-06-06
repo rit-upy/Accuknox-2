@@ -2,19 +2,19 @@
 from rest_framework import generics,status
 from .models import Friends
 from authentication.models import User
-from .serializers import AcceptedUsersSerializer,SearchUsersSerializer,RequestSerializer, SendRequestSerializer, ReceivedUserRequestSerializer
+from .serializers import AcceptedRequestUsersSerializer,SearchUsersSerializer,RequestSerializer, SendRequestSerializer, ReceivedRequestUserSerializer
 from rest_framework.response import Response
 from rest_framework import viewsets
 from django.db.models import Q
-from rest_framework import throttling
-from rest_framework.pagination import PageNumberPagination
+from .paginators import SearchUserPagination
+from .throttles import FriendRequestThrottle
 
 
 
 # Create your views here.
 class ListUsers(generics.ListAPIView):
     
-    serializer_class = AcceptedUsersSerializer
+    serializer_class = AcceptedRequestUsersSerializer
 
     def get(self, request, *args, **kwargs):
         user = request.user
@@ -25,7 +25,7 @@ class ListUsers(generics.ListAPIView):
         elif pending_status.lower() == 'accepted':
             friends = Friends.objects.filter(user = user, pending = False)            
         elif pending_status.lower() == 'pending':
-            self.serializer_class = ReceivedUserRequestSerializer
+            self.serializer_class = ReceivedRequestUserSerializer
             friends = Friends.objects.filter(friend = user, pending = True) 
         else:
             return Response('Wrong status request!', status=status.HTTP_400_BAD_REQUEST)
@@ -38,11 +38,7 @@ class ListUsers(generics.ListAPIView):
         return super().get(request, *args, **kwargs)
 
 
-class SearchUserPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 10000
-       
+
 
 class SearchAPIView(generics.ListAPIView):
     serializer_class = SearchUsersSerializer
@@ -51,8 +47,8 @@ class SearchAPIView(generics.ListAPIView):
     def get_queryset(self):
         search_email = self.request.query_params.get('email', None)
 
-        if search_email is not None:
-            return User.objects.filter(email=search_email)
+        if search_email is not None:    
+            return User.objects.filter(email__iexact = search_email)
         
         name = self.request.query_params.get('name', None)
         
@@ -64,8 +60,6 @@ class SearchAPIView(generics.ListAPIView):
     
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        # if not queryset.exists():
-        #     return Response('Please enter the email or the name field.', status=status.HTTP_400_BAD_REQUEST)
         
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -74,28 +68,6 @@ class SearchAPIView(generics.ListAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-
-
-
-class FriendRequestThrottle(throttling.SimpleRateThrottle):
-    scope = 'friend_request'
-    rate = '3/minute'
-    def get_cache_key(self, request, view):
-        # Use the user's ID as part of the cache key to distinguish requests from different users
-        user_id = request.user.id if request.user else None
-        return f'{self.scope}-{user_id}'
-
-    def allow_request(self, request, view):
-        # Get the cache key for the current request
-        cache_key = self.get_cache_key(request, view)
-        # Get the number of requests made by the user within the throttle time window
-        num_requests = self.cache.get(cache_key, 0)
-        # Check if the user has exceeded the allowed number of requests
-        if num_requests >= 3:
-            return False
-        # Increment the number of requests made by the user
-        self.cache.set(cache_key, num_requests + 1, self.duration)
-        return True
 
 
 class FriendRequest(viewsets.ModelViewSet):
@@ -117,10 +89,7 @@ class FriendRequest(viewsets.ModelViewSet):
         friend.save()
         return Response('Friend request is accepted.', status=status.HTTP_200_OK)
     
-    def get_throttles(self):
-        if self.action == 'create':
-            return [FriendRequestThrottle()]
-        return super().get_throttles()
+    
 
     def destroy(self, request, *args, **kwargs): #reject
         user = request.user
@@ -143,4 +112,4 @@ class FriendRequest(viewsets.ModelViewSet):
 
 class SendRequestView(generics.CreateAPIView):
     serializer_class = SendRequestSerializer
-    
+    throttle_classes = [FriendRequestThrottle]

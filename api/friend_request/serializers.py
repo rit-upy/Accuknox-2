@@ -3,12 +3,12 @@ from .models import Friends, User
 
 from rest_framework.response import Response
 
-class AcceptedUsersSerializer(serializers.ModelSerializer):
+class AcceptedRequestUsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = Friends
         fields = ('friend', )
 
-class ReceivedUserRequestSerializer(serializers.ModelSerializer):
+class ReceivedRequestUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Friends
         fields = ('user',)
